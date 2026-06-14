@@ -1,0 +1,2 @@
+[console_scripts]
+courier-agent-demo = courier_agent_demo.__main__:main
