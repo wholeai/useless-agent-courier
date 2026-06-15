@@ -38,8 +38,11 @@ python -m pip install -e ".[dev]"
 ```
 
 Set environment variables before running:
-- `OPENAI_API_KEY`
-- `COURIER_AGENT_MODEL`
+- Copy `env.example` to `.env`, then set your model endpoint.
+- `OPENAI_API_KEY` for OpenAI or any OpenAI-compatible gateway.
+- `OPENAI_BASE_URL` for the OpenAI-compatible endpoint, such as `https://api.openai.com/v1`.
+- `COURIER_AGENT_PROVIDER`, defaults to `openai-compatible`.
+- `COURIER_AGENT_MODEL`, such as `gpt-4o-mini` or a model name from your compatible gateway.
 - `DATABASE_PATH`
 - `HEARTBEAT_INTERVAL_SECONDS`
 - `LOW_BATTERY_THRESHOLD`
@@ -56,7 +59,7 @@ docker compose up --build
 ```
 
 ## API
-### `GET /health`
+### `GET /api/v1/health`
 Health and database status.
 
 ### `POST /api/v1/orders`

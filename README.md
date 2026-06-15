@@ -59,6 +59,39 @@ Fetch current order state.
 ### `GET /api/v1/orders/{order_id}/timeline`
 Inspect events, runs, and tool calls.
 
+## curl Examples
+```bash
+# Create an order (returns order_id in response)
+curl -s -X POST http://localhost:8000/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_name": "Alice",
+    "pickup_address": "123 Main St",
+    "delivery_address": "456 Oak Ave, Downtown",
+    "package_label": "Fragile electronics",
+    "starting_battery_level": 90
+  }' | jq .
+
+# Get order state (replace <order_id> with actual id from create response)
+curl -s http://localhost:8000/api/v1/orders/<order_id> | jq .
+
+# Get order timeline (events, runs, tool calls)
+curl -s http://localhost:8000/api/v1/orders/<order_id>/timeline | jq .
+
+# Push an event to an order
+curl -s -X POST http://localhost:8000/api/v1/orders/<order_id>/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "customer_reply",
+    "message": "I will be home in 10 minutes",
+    "location": "Near the park",
+    "battery_level": 85
+  }' | jq .
+
+# Health check
+curl -s http://localhost:8000/api/v1/health | jq .
+```
+
 ## Explainability Model
 The service does **not** expose raw chain-of-thought. It returns a safe, auditable summary instead:
 - `decision`
