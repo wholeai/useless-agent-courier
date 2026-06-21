@@ -1,24 +1,20 @@
-# 无用 Agent 系列之快递员：我想先做一个看起来没什么用的职业 Agent
-
 我先把结论放前面。
 
-这个项目，**一眼看上去就不像正经产品**。它不是派单系统，不是路径规划算法，也不是写死状态流的业务 demo。它更像是我拿一个大模型，硬塞进"快递员"这个职业框架里，让它自己读规则，自己判断情况，自己决定要不要调工具，然后把每一次决策都记下来。
+这个项目**一眼就不像正经产品**。不是派单系统，不是路径规划算法，也不是写死状态流的业务 demo。更像是我拿一个大模型，硬塞进"快递员"这个框架里，让它自己读规则、自己判断、自己决定要不要调工具，然后把每一次决策都记下来。
 
 听起来有点无用。
 
 但我越做越觉得，**这才是它适合当第一篇的原因。**
 
-因为"职业 Agent"真正值得研究的，不是 AI 能不能替代一个人，而是一个更工程化的问题：**当一个职业被拆成规则、工具、记忆、事件和决策之后，我们能不能把它做成一个可运行、可观察、可复盘的系统？**
+因为"职业 Agent"真正值得研究的，不是 AI 能不能替代一个人。而是一个更工程化的问题：**当一个职业被拆成规则、工具、记忆、事件和决策之后，我们能不能把它做成一个可运行、可观察、可复盘的系统？**
 
-今天这篇，我先把快递员这个最小闭环跑给你看。
+今天这篇，我把快递员这个最小闭环跑给你看。
 
 ![Starship 自动配送机器人行驶在校园道路上（示意图）](https://images.unsplash.com/photo-1717538855595-c2025a0755bb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NjYxNTR8MHwxfHNlYXJjaHwzfHxjb3VyaWVyJTIwZGVsaXZlcnklMjByb2JvdCUyMGNvbmNlcHR8ZW58MHwwfHx8MTc4MTk0NzM5NHww&ixlib=rb-4.1.0&q=80&w=1080)
 
-图片来自 Unsplash，仅作文章配图示意。来源：https://unsplash.com/photos/a-white-and-black-robot-sitting-on-top-of-a-brick-road-U-WdRP2M56w
-
 ---
 
-## 01 我最开始给 AI 的指令
+## 01 我给 AI 的第一句话
 
 这个项目的起点很简单。
 
@@ -26,7 +22,7 @@
 
 AI 一开始给出的方案，比较像传统系统设计：状态机、任务流、派单、取件、送达、异常处理。
 
-这些东西当然有用，但我很快意识到，这不是我真正想要的。
+这些东西有用，但我很快意识到，这不是我想要的。
 
 于是我补了一句关键的话：
 
@@ -36,21 +32,19 @@ AI 一开始给出的方案，比较像传统系统设计：状态机、任务�
 
 我想要的不是这个。
 
-我想要的是：快递员 Agent 收到一个事件——比如"客户不接电话""电量只剩 12%""小区门禁打不开"——它可以先去查自己的配送手册，再决定是联系客户、通知调度、重新规划路线，还是把订单标记为异常。
+我想要的是：快递员 Agent 收到一个事件——比如"客户不接电话""手机电量只剩 12%""小区门禁打不开"——它可以先去查自己的配送手册，再决定是联系客户、通知调度、重新规划路线，还是把订单标记为异常。
 
 它不是乱想。**它要在规则里行动。**
 
 ---
 
-## 02 AI 给出的工程判断
+## 02 方向定了，架构就清楚了
 
-调研之后，方向逐渐清楚了。
+调研之后，这个 demo 不适合一上来就做很重的系统。LangGraph 适合复杂状态图，OpenAI Agents SDK 有不错的 tracing，CrewAI 偏角色协作。但这个阶段，我更想先把"一个职业 Agent 的最小闭环"跑起来。
 
-这个 demo 不适合一上来就做很重的系统。LangGraph 适合复杂状态图，OpenAI Agents SDK 有不错的 tracing，CrewAI 偏角色协作。但这个阶段，我更想先把"一个职业 Agent 的最小闭环"跑起来。
+所以选了一个更轻的组合：FastAPI 对外提供接口，PydanticAI 负责大模型调用和结构化输出，SQLite 持久化所有决策记录，再加一个 Heartbeat 机制让 Agent 定期重新判断状态。
 
-所以最后选了一个更轻的组合：FastAPI 对外提供接口，PydanticAI 负责大模型调用和结构化输出，SQLite 持久化所有决策记录，再加一个 Heartbeat 机制让 Agent 定期重新判断状态。
-
-这套设计里，我最在意的是三件事。
+这套设计里，我最在意三件事。
 
 **第一，它能不能长期运行。**
 
@@ -70,11 +64,9 @@ AI 一开始给出的方案，比较像传统系统设计：状态机、任务�
 
 ![数据分析仪表盘界面（示意图）](https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NjYxNTR8MHwxfHNlYXJjaHwxfHxldmVudCUyMHRpbWVsaW5lJTIwZGFzaGJvYXJkJTIwYW5hbHl0aWNzfGVufDB8MHx8fDE3ODE5NDczOTR8MA&ixlib=rb-4.1.0&q=80&w=1080)
 
-图片来自 Unsplash，仅作文章配图示意。来源：https://unsplash.com/photos/graphs-of-performance-analytics-on-a-laptop-screen-JKUTrJ4vK00
-
 ---
 
-## 03 我把这个最小闭环真的跑了一遍
+## 03 真的跑了一遍
 
 空讲设计没意思，直接说我这次实际跑出来的结果。
 
@@ -96,19 +88,17 @@ AI 一开始给出的方案，比较像传统系统设计：状态机、任务�
 
 ![配送机器人在城市街道行驶（示意图）](https://images.pexels.com/photos/8566562/pexels-photo-8566562.jpeg?auto=compress&cs=tinysrgb&h=650&w=940)
 
-图片来自 Pexels，仅作文章配图示意。来源：https://www.pexels.com/photo/delivery-robot-on-the-go-8566562/
-
 ---
 
-## 04 代码思路：这个项目里到底装了什么
+## 04 代码思路
 
-这个项目代码量不大，但我故意把它按“一个可演进系统”去组织，而不是按“一个能跑的脚本”去写。
+这个项目代码量不大，但我故意把它按"一个可演进系统"去组织，而不是按"一个能跑的脚本"去写。
 
 最核心的地方，其实只有几层：**数据骨架、API、调度中枢、Agent、规则手册、持久化和时间线。**
 
 我先从最不起眼、但最重要的 `schemas.py` 说起。
 
-它定义了三样东西：订单有哪些状态、事件有哪些类型、Agent 最后必须输出哪些字段。比如订单不是随便一个字符串，而是 `assigned`、`en_route_pickup`、`in_transit`、`delivered`、`delayed`、`escalated` 这些提前定义好的状态。事件也不是自由文本，而是 `heartbeat`、`customer_reply`、`pickup_completed`、`delivery_completed`、`exception` 这些固定类型。
+它定义了三样东西：订单有哪些状态、事件有哪些类型、Agent 最后必须输出哪些字段。比如订单不是随便一个字符串，而是 `assigned`（已派单）、`en_route_pickup`（前往取件）、`in_transit`（运输中）、`delivered`（已送达）、`delayed`（延误）、`escalated`（已上报）这些提前定义好的状态。事件也不是自由文本，而是 `heartbeat`（心跳）、`customer_reply`（客户回复）、`pickup_completed`（取件完成）、`delivery_completed`（送达完成）、`exception`（异常）这些固定类型。
 
 为什么要先做这个？
 
@@ -116,7 +106,7 @@ AI 一开始给出的方案，比较像传统系统设计：状态机、任务�
 
 接着是 `api/routes.py`。它的职责很单纯：**接收外部请求，然后把问题交给内部系统。**
 
-比如创建订单，它不会自己判断下一步，而是先写入订单，再立刻触发第一次 Agent 决策。推送事件也是一样，`customer_reply`、`heartbeat`、`exception` 进来后，它只负责转发，不负责拍脑袋。它更像一个“前台”，真正的判断都在后面发生。
+比如创建订单，它不会自己判断下一步，而是先写入订单，再立刻触发第一次 Agent 决策。推送事件也是一样，`customer_reply`、`heartbeat`、`exception` 进来后，它只负责转发，不负责拍脑袋。它更像一个"前台"，真正的判断都在后面发生。
 
 再往下，是整个系统最核心的一层：`orchestrator.py`。
 
@@ -130,13 +120,56 @@ AI 一开始给出的方案，比较像传统系统设计：状态机、任务�
 6. 记录这次 Agent run
 7. 返回订单、决策、run 和工具调用
 
+核心方法结构：
+
+```python
+class CourierOrchestrator:
+    def process_event(self, order_id, event) -> ProcessResult:
+        # 主入口：接收事件，触发完整决策流程
+        order = self.repository.get_order(order_id)
+        updated_order = self._merge_event(order, event)  # 合并事件状态
+        self.repository.append_event(order_id, event)    # 记录事件
+        decision = self._run_agent(deps, event)          # 运行 Agent 获取决策
+        finalized_order = self._apply_decision(updated_order, event, decision)  # 应用决策
+        return ProcessResult(order=finalized_order, decision=decision, ...)
+
+    def _run_agent(self, deps, event) -> CourierDecision: ...
+    def _merge_event(self, order, event) -> OrderRecord: ...
+    def _apply_decision(self, order, event, decision) -> OrderRecord: ...
+    def _build_prompt(self, order, event) -> str: ...
+```
+
 这里最关键的一点是：**Agent 的输出不是自由文本，而是结构化决策。**
 
-它必须回答：这次决策是什么、原因是什么、依据了哪些规则、下一步要做什么、多久之后再检查一次。这样系统拿到的才不是一句“已处理”，而是一个可记录、可审计、可复盘的结果。
+它必须回答：这次决策是什么、原因是什么、依据了哪些规则、下一步要做什么、多久之后再检查一次。这样系统拿到的才不是一句"已处理"，而是一个可记录、可审计、可复盘的结果。
 
 然后是 `agent.py`。
 
 它负责搭出这个快递员 Agent 的“脑子”。里面会定义角色说明、工具集、上下文注入方式。系统每次调用 Agent 时，都会把当前订单、当前事件、手册摘要一起塞进去，让它在有约束的情况下做判断。
+
+核心方法结构：
+
+```python
+def build_courier_agent(model_name, *, provider, api_key, base_url) -> Agent:
+    # 构建 Agent 实例，注入系统提示词和依赖类型
+    agent = Agent(model, deps_type=CourierDeps, output_type=CourierDecision, instructions=COURIER_SYSTEM_PROMPT)
+    
+    # 动态注入上下文：当前时间、订单状态、电量、位置、手册摘要
+    @agent.instructions
+    async def add_operating_context(ctx): ...
+    
+    # Agent 可调用的工具集
+    @agent.tool
+    async def search_delivery_manual(ctx, query): ...  # 搜索配送手册
+    @agent.tool
+    async def call_customer(ctx, message): ...         # 联系客户
+    @agent.tool
+    async def notify_dispatch(ctx, reason): ...        # 通知调度
+    @agent.tool
+    async def plan_route(ctx, destination): ...        # 规划路线
+    @agent.tool
+    async def update_memory(ctx, key, value): ...      # 更新记忆
+```
 
 这里有一个细节值得注意：Agent 不是自己编规则，它能调用一个工具叫 `search_delivery_manual`。也就是说，它是“查规则”来支持判断，不是凭空拍脑袋。今天这个手册很小，但这个位置已经留出来了。后面你要接知识库、接 RAG、接更复杂的业务规则，入口就在这个地方。
 
@@ -148,40 +181,46 @@ AI 一开始给出的方案，比较像传统系统设计：状态机、任务�
 
 它负责把所有过程留下来：订单、事件、Agent run、工具调用、心跳、记忆，全都落库。每次你查 timeline，看到的不是“最终状态”，而是一条完整过程：发生了什么、Agent 做了什么判断、调用了哪些工具、工具返回了什么结果。
 
+核心方法结构：
+
+```python
+class CourierRepository:
+    def create_order(self, request) -> OrderRecord: ...        # 创建订单
+    def get_order(self, order_id) -> OrderRecord: ...           # 获取订单
+    def record_tool_call(self, **kwargs) -> None: ...           # 记录工具调用
+    def record_heartbeat(self, order_id, status, battery_level, note) -> None: ...  # 记录心跳
+    def record_memory(self, order_id, memory_key, memory_json) -> None: ...         # 记录记忆
+```
+
 这层的意义不是“用 SQLite 存点数据”，而是让系统具备**回放能力**。
 
 很多 Agent demo 做到最后，最怕的不是答错，而是不知道为什么答错。没有 timeline，就只能猜。有了 timeline，才能追，才能改规则，才能做测试断言。
 
 最后还有 `heartbeat.py`。
 
-它不是一个业务逻辑模块，而是一个外部节拍器。它的作用很简单：定时把当前订单状态重新推给 Agent，让系统有机会重新判断。这样系统就不会只在“有人发事件”时才动，而是能保持一个持续运行的感觉。
+它不是一个业务逻辑模块，而是一个外部节拍器。它的作用很简单：定时把当前订单状态重新推给 Agent，让系统有机会重新判断。这样系统就不会只在"有人发事件"时才动，而是能保持一个持续运行的感觉。
 
 这也很符合现实：快递员不是只在收到客户消息时思考，他也会在行驶途中、在电量变化、在时间推移时不断重新判断。
+
+核心方法结构：
+
+```python
+class HeartbeatService:
+    interval_seconds: int   # 心跳间隔（秒）
+    running: bool = False   # 运行状态
+
+    async def run_once(self) -> None:
+        # 执行一次心跳：遍历所有活跃订单，为每个订单生成心跳事件并触发 Agent 决策
+        active_orders = self.repository.list_active_orders()
+        for order in active_orders:
+            event = DeliveryEvent(event_type="heartbeat", message="scheduled heartbeat", ...)
+            await self.orchestrator.process_event_async(order.order_id, event)
+
+    async def run_forever(self) -> None: ...  # 持续运行，按间隔重复执行 run_once
+```
 
 所以如果让我用一句话总结这个项目的代码思路，我会说：
 
 **它不是先写一个能跑的 demo，再补结构；而是先把数据、规则、决策、回放这四件事立住，再让 Agent 在这个骨架里工作。**
 
-这也是为什么它虽然小，但后面还可以继续长出测试、问题修复、可观测性和职业扩展。
-
----
-
-## 05 后面准备怎么写
-
-如果把"快递员 Agent"当成一个真实项目，后面至少可以继续写这些篇章：
-
-- **测试篇**：为什么 Agent 项目不能直接依赖真实模型，怎么做 fake agent 和稳定断言。
-- **问题修复篇**：记录真实开发中遇到的坑和解决过程。
-- **可观测性篇**：怎么用日志和时间线让 Agent 不再是黑盒。
-- **业务规则篇**：怎么把快递员手册从硬编码规则升级成可检索知识。
-- **职业扩展篇**：从快递员迁移到外卖员、客服、销售，哪些模块能复用，哪些必须重写。
-
-我更希望这个系列像一个项目日志，而不是一篇"AI 又能干什么"的爽文。
-
-因为真正有价值的，不是证明 AI 能扮演一个快递员。
-
-而是通过快递员这个足够具体、足够日常、足够不完美的职业，把职业 Agent 的工程边界一点点摸清楚。
-
-**不要急着做一个万能 Agent。先做一个看起来很无用、但能持续运行、能解释自己、能被测试、能被修复的小 Agent。**
-
-这可能才是职业 Agent 真正落地的开始。
+如果你喜欢这个系列，我是李飞歌，关注《爬虫之心》公众号，让我们一起开发更多无用Agent。
