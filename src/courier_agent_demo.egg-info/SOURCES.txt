@@ -4,6 +4,7 @@ src/courier_agent_demo/__init__.py
 src/courier_agent_demo/__main__.py
 src/courier_agent_demo/agent.py
 src/courier_agent_demo/app.py
+src/courier_agent_demo/integrations.py
 src/courier_agent_demo/manual.py
 src/courier_agent_demo/orchestrator.py
 src/courier_agent_demo/repository.py
@@ -20,5 +21,7 @@ src/courier_agent_demo/core/__init__.py
 src/courier_agent_demo/core/config.py
 src/courier_agent_demo/core/heartbeat.py
 src/courier_agent_demo/core/logging.py
+tests/test_cross_order_memory.py
+tests/test_integrations.py
 tests/test_orchestrator.py
 tests/test_repository.py
