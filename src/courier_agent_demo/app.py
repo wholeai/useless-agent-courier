@@ -9,6 +9,7 @@ from .api.routes import router
 from .core.config import get_settings
 from .core.heartbeat import HeartbeatService
 from .core.logging import configure_logging
+from .integrations import ToolBackends
 from .orchestrator import CourierOrchestrator
 from .repository import CourierRepository
 
@@ -24,6 +25,12 @@ def create_app() -> FastAPI:
             repository=repository,
             model_name=settings.agent_model,
             low_battery_threshold=settings.low_battery_threshold,
+            backends=ToolBackends.from_settings(
+                dingtalk_webhook_url=settings.dingtalk_webhook_url,
+                customer_contact_webhook_url=settings.customer_contact_webhook_url,
+                routing_base_url=settings.routing_base_url,
+                timeout_seconds=settings.integration_timeout_seconds,
+            ),
             model_provider=settings.agent_provider,
             openai_api_key=settings.openai_api_key,
             openai_base_url=settings.openai_base_url,

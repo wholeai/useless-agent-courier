@@ -17,9 +17,9 @@ def test_orchestrator_applies_decision_without_real_model(tmp_path):
 
     orchestrator = CourierOrchestrator(
         repository=repository,
-        model_name="fake:model",
+        model_name="test",
         low_battery_threshold=15,
-        model_provider="pydantic-ai",
+        model_provider="test",
     )
     orchestrator._run_agent = lambda deps, event: CourierDecision(  # type: ignore[method-assign]
         status="delayed",

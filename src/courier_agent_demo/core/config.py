@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     heartbeat_interval_seconds: int = Field(default=10, alias="HEARTBEAT_INTERVAL_SECONDS")
     low_battery_threshold: int = Field(default=15, alias="LOW_BATTERY_THRESHOLD")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    # Real-world integrations. Empty / unset = log-only mode (no network call).
+    dingtalk_webhook_url: str | None = Field(default=None, alias="DINGTALK_WEBHOOK_URL")
+    customer_contact_webhook_url: str | None = Field(default=None, alias="CUSTOMER_CONTACT_WEBHOOK_URL")
+    routing_base_url: str | None = Field(default=None, alias="ROUTING_BASE_URL")
+    integration_timeout_seconds: int = Field(default=5, alias="INTEGRATION_TIMEOUT_SECONDS")
 
 
 @lru_cache(maxsize=1)

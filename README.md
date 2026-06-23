@@ -33,6 +33,12 @@ Set environment variables before running:
 - `LOW_BATTERY_THRESHOLD`
 - `LOG_LEVEL`
 
+Real-world integrations (article 02). All optional; if unset the agent runs in **log-only mode** and records the would-be call to the audit log.
+- `DINGTALK_WEBHOOK_URL` — DingTalk robot webhook for `notify_dispatch`.
+- `CUSTOMER_CONTACT_WEBHOOK_URL` — generic push endpoint for `call_customer` (Bark / ntfy / 企业微信 incoming all work).
+- `ROUTING_BASE_URL` — defaults to the public OSRM router; `plan_route` needs `lng,lat` strings.
+- `INTEGRATION_TIMEOUT_SECONDS` — defaults to 5.
+
 ## Run
 ```bash
 uvicorn courier_agent_demo.app:app --reload
@@ -104,3 +110,5 @@ The service does **not** expose raw chain-of-thought. It returns a safe, auditab
 - The demo is event-driven, not a rigid state machine.
 - Heartbeat is a scheduler input, not the business logic itself.
 - SQLite is used for local-first persistence and replayable debugging.
+- Integrations have a `log_only` fallback so the demo runs without any external accounts; the audit log records what the agent *would* have sent.
+- `update_memory` accepts `scope="global"` for cross-order knowledge; read it back with `recall_global_memory(key)`.

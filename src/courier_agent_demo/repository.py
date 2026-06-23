@@ -129,6 +129,13 @@ class CourierRepository:
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY(order_id) REFERENCES orders(order_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS global_memories (
+                    memory_key TEXT PRIMARY KEY,
+                    memory_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -331,6 +338,45 @@ class CourierRepository:
                     """,
                     (_serialize(memory_json), now.isoformat(), order_id, memory_key),
                 )
+
+    def record_global_memory(self, memory_key: str, memory_json: dict) -> None:
+        now = _utc_now()
+        with self._lock, self._connect() as connection:
+            existing = connection.execute(
+                "SELECT memory_key FROM global_memories WHERE memory_key = ?",
+                (memory_key,),
+            ).fetchone()
+            if existing is None:
+                connection.execute(
+                    """
+                    INSERT INTO global_memories (memory_key, memory_json, created_at, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (memory_key, _serialize(memory_json), now.isoformat(), now.isoformat()),
+                )
+            else:
+                connection.execute(
+                    "UPDATE global_memories SET memory_json = ?, updated_at = ? WHERE memory_key = ?",
+                    (_serialize(memory_json), now.isoformat(), memory_key),
+                )
+
+    def get_global_memory(self, memory_key: str) -> dict | None:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                "SELECT memory_json FROM global_memories WHERE memory_key = ?",
+                (memory_key,),
+            ).fetchone()
+        if row is None:
+            return None
+        value = _deserialize(row["memory_json"])
+        return value if isinstance(value, dict) else None
+
+    def list_global_memory_keys(self) -> list[str]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                "SELECT memory_key FROM global_memories ORDER BY updated_at DESC"
+            ).fetchall()
+        return [row["memory_key"] for row in rows]
 
     def get_timeline(self, order_id: str) -> list[TimelineItem]:
         with self._lock, self._connect() as connection:

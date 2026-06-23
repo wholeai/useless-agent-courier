@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from .agent import CourierDeps, build_courier_agent
 from .core.logging import get_logger
+from .integrations import ToolBackends
 from .schemas import AgentRunRecord, CourierDecision, DeliveryEvent, OrderRecord
 
 
@@ -29,6 +30,7 @@ class CourierOrchestrator:
         repository,
         model_name: str,
         low_battery_threshold: int,
+        backends: ToolBackends | None = None,
         model_provider: str = "openai-compatible",
         openai_api_key: str | None = None,
         openai_base_url: str | None = None,
@@ -36,6 +38,7 @@ class CourierOrchestrator:
         self.repository = repository
         self.model_name = model_name
         self.low_battery_threshold = low_battery_threshold
+        self.backends = backends or ToolBackends.log_only()
         self.logger = get_logger(self.__class__.__name__)
         self._agent = build_courier_agent(
             model_name,
@@ -68,6 +71,7 @@ class CourierOrchestrator:
             run_id=run_id,
             model_name=self.model_name,
             low_battery_threshold=self.low_battery_threshold,
+            backends=self.backends,
         )
 
         decision = self._run_agent(deps, event)

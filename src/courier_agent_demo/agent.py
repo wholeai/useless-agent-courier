@@ -8,8 +8,15 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
+from .integrations import ToolBackends
 from .manual import manual_overview, search_manual
 from .schemas import CourierDecision, DeliveryEvent, OrderRecord
+
+
+# Ponytail: a recognised stub provider so unit tests can build the agent
+# without network or a real LLM. Real deployments use the openai-compatible
+# provider; tests should never reach for the network.
+_TEST_MODEL_SENTINEL = "test"
 
 
 @dataclass
@@ -20,6 +27,7 @@ class CourierDeps:
     run_id: str
     model_name: str
     low_battery_threshold: int
+    backends: ToolBackends
 
 
 COURIER_SYSTEM_PROMPT = """
@@ -49,6 +57,11 @@ def build_agent_model(*, model_name: str, provider: str, api_key: str | None, ba
         model_id = model_name.split(":", maxsplit=1)[1] if model_name.startswith("openai:") else model_name
         provider_config = OpenAIProvider(base_url=base_url, api_key=api_key) if base_url else OpenAIProvider(api_key=api_key)
         return OpenAIChatModel(model_id, provider=provider_config)
+
+    if provider == "test":
+        from pydantic_ai.models.test import TestModel
+
+        return TestModel()
 
     return model_name
 
@@ -102,59 +115,77 @@ def build_courier_agent(
 
     @agent.tool
     async def call_customer(ctx: RunContext[CourierDeps], message: str) -> str:
-        attempts = ctx.deps.order.customer_contact_attempts + 1
-        response = "No response yet." if attempts < 2 else "Customer replied: gate code is 1234."
+        result = ctx.deps.backends.customer.contact(message)
         ctx.deps.repository.record_tool_call(
             run_id=ctx.deps.run_id,
             order_id=ctx.deps.order.order_id,
             tool_name="call_customer",
-            input_json={"message": message, "attempt": attempts},
-            output_json={"response": response},
-            status="success",
+            input_json={"message": message},
+            output_json=result.to_record(),
+            status="success" if result.status == "ok" else "error",
         )
-        return response
+        return result.as_tool_string()
 
     @agent.tool
     async def notify_dispatch(ctx: RunContext[CourierDeps], reason: str) -> str:
-        message = f"Dispatch notified: {reason}"
+        result = ctx.deps.backends.dispatch.notify(reason)
         ctx.deps.repository.record_tool_call(
             run_id=ctx.deps.run_id,
             order_id=ctx.deps.order.order_id,
             tool_name="notify_dispatch",
             input_json={"reason": reason},
-            output_json={"message": message},
-            status="success",
+            output_json=result.to_record(),
+            status="success" if result.status == "ok" else "error",
         )
-        return message
+        return result.as_tool_string()
 
     @agent.tool
     async def plan_route(ctx: RunContext[CourierDeps], destination: str) -> str:
-        route = f"Route planned from {ctx.deps.order.current_location} to {destination}"
+        result = ctx.deps.backends.routing.plan(ctx.deps.order.current_location, destination)
         ctx.deps.repository.record_tool_call(
             run_id=ctx.deps.run_id,
             order_id=ctx.deps.order.order_id,
             tool_name="plan_route",
-            input_json={"destination": destination},
-            output_json={"route": route},
-            status="success",
+            input_json={"origin": ctx.deps.order.current_location, "destination": destination},
+            output_json=result.to_record(),
+            status="success" if result.status == "ok" else "error",
         )
-        return route
+        return result.as_tool_string()
 
     @agent.tool
-    async def update_memory(ctx: RunContext[CourierDeps], key: str, value: str) -> str:
-        ctx.deps.repository.record_memory(
-            ctx.deps.order.order_id,
-            key,
-            {"value": value, "event": ctx.deps.event.model_dump(), "run_id": ctx.deps.run_id},
-        )
+    async def update_memory(ctx: RunContext[CourierDeps], key: str, value: str, scope: str = "order") -> str:
+        payload = {"value": value, "event": ctx.deps.event.model_dump(), "run_id": ctx.deps.run_id}
+        if scope == "global":
+            ctx.deps.repository.record_global_memory(key, payload)
+        else:
+            ctx.deps.repository.record_memory(ctx.deps.order.order_id, key, payload)
         ctx.deps.repository.record_tool_call(
             run_id=ctx.deps.run_id,
             order_id=ctx.deps.order.order_id,
             tool_name="update_memory",
-            input_json={"key": key, "value": value},
-            output_json={"stored": True},
+            input_json={"key": key, "value": value, "scope": scope},
+            output_json={"stored": True, "scope": scope},
             status="success",
         )
-        return f"Stored memory for {key}."
+        return f"Stored {scope} memory for {key}."
+
+    @agent.tool
+    async def recall_global_memory(ctx: RunContext[CourierDeps], key: str) -> str:
+        memory = ctx.deps.repository.get_global_memory(key)
+        if memory is None:
+            output = {"found": False, "key": key}
+            detail = f"no global memory for {key}"
+        else:
+            output = {"found": True, "key": key, "value": memory.get("value")}
+            detail = f"global memory {key} = {memory.get('value')}"
+        ctx.deps.repository.record_tool_call(
+            run_id=ctx.deps.run_id,
+            order_id=ctx.deps.order.order_id,
+            tool_name="recall_global_memory",
+            input_json={"key": key},
+            output_json=output,
+            status="success",
+        )
+        return detail
 
     return agent
